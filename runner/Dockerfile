@@ -72,6 +72,7 @@ RUN curl -fsSL -o runner.tar.gz \
     && rm runner.tar.gz
 
 COPY --chown=runner:runner entrypoint.sh /home/runner/entrypoint.sh
+RUN chmod +x /home/runner/entrypoint.sh
 
 # Tell BuildKit/buildctl to authenticate to any *.dkr.ecr.* registry via the
 # ECR credential helper, which reads the task-role credentials from the
