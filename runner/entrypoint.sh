@@ -40,9 +40,14 @@ export ECR_HOST   # exported for workflows that want the registry host
 export XDG_RUNTIME_DIR="${HOME}/.local/run"
 mkdir -p "${XDG_RUNTIME_DIR}"
 export BUILDKIT_HOST="unix://${HOME}/buildkitd.sock"
+# Rootless buildkitd cannot write the default /var/lib/buildkit, so keep its
+# state under the user's home where it has write access.
+BUILDKIT_ROOT="${HOME}/.local/share/buildkit"
+mkdir -p "${BUILDKIT_ROOT}"
 rootlesskit \
   buildkitd \
     --addr "${BUILDKIT_HOST}" \
+    --root "${BUILDKIT_ROOT}" \
     --oci-worker-no-process-sandbox \
     >"${HOME}/buildkitd.log" 2>&1 &
 BUILDKITD_PID=$!

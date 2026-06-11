@@ -36,6 +36,11 @@ RUNNER_GROUP_ID = int(os.environ.get("RUNNER_GROUP_ID", "1"))
 APP_ID = os.environ["GITHUB_APP_ID"]
 APP_KEY_SECRET_ARN = os.environ["GITHUB_APP_KEY_SECRET_ARN"]
 USE_FARGATE_SPOT = os.environ.get("USE_FARGATE_SPOT", "false").lower() == "true"
+# FARGATE (default) or EC2. EC2 is used where the build needs a host that permits
+# user namespaces, for example rootless BuildKit. A capacity provider name, if
+# set, takes precedence over the launch type.
+LAUNCH_TYPE = os.environ.get("LAUNCH_TYPE", "FARGATE").upper()
+CAPACITY_PROVIDER = os.environ.get("CAPACITY_PROVIDER", "")
 
 _key_cache = {}
 
@@ -62,17 +67,16 @@ def _launch_runner(msg):
         runner_group_id=RUNNER_GROUP_ID,
     )
 
+    # assignPublicIp is a Fargate-only parameter; EC2 tasks reject it.
+    awsvpc = {"subnets": SUBNET_IDS, "securityGroups": SECURITY_GROUP_IDS}
+    if LAUNCH_TYPE == "FARGATE" or USE_FARGATE_SPOT:
+        awsvpc["assignPublicIp"] = "DISABLED"  # private subnets only
+
     run_args = {
         "cluster": CLUSTER,
         "taskDefinition": TASK_DEFINITION,
         "count": 1,
-        "networkConfiguration": {
-            "awsvpcConfiguration": {
-                "subnets": SUBNET_IDS,
-                "securityGroups": SECURITY_GROUP_IDS,
-                "assignPublicIp": "DISABLED",  # private subnets only
-            }
-        },
+        "networkConfiguration": {"awsvpcConfiguration": awsvpc},
         "overrides": {
             "containerOverrides": [
                 {
@@ -95,13 +99,15 @@ def _launch_runner(msg):
         "enableExecuteCommand": False,  # no ECS Exec into build runners
     }
 
-    if USE_FARGATE_SPOT:
+    if CAPACITY_PROVIDER:
+        run_args["capacityProviderStrategy"] = [{"capacityProvider": CAPACITY_PROVIDER, "weight": 1}]
+    elif USE_FARGATE_SPOT:
         run_args["capacityProviderStrategy"] = [
             {"capacityProvider": "FARGATE_SPOT", "weight": 4},
             {"capacityProvider": "FARGATE", "weight": 1, "base": 1},
         ]
     else:
-        run_args["launchType"] = "FARGATE"
+        run_args["launchType"] = LAUNCH_TYPE
 
     resp = ecs.run_task(**run_args)
     failures = resp.get("failures", [])
