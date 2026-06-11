@@ -61,7 +61,11 @@ RUN curl -fsSL "${TOOL_MIRROR_GITHUB}/anchore/syft/releases/download/v1.14.0/syf
     && chmod +x /usr/local/bin/cosign
 
 # --- non-root runner user ----------------------------------------------------
-RUN useradd -m -u 1000 -s /bin/bash runner
+# subuid/subgid ranges are required for rootless BuildKit's user namespace
+# (rootlesskit + newuidmap). Without them buildkitd fails to start on Fargate.
+RUN useradd -m -u 1000 -s /bin/bash runner \
+    && echo "runner:100000:65536" > /etc/subuid \
+    && echo "runner:100000:65536" > /etc/subgid
 USER runner
 WORKDIR /home/runner
 
