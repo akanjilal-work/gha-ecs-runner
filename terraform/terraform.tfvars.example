@@ -1,0 +1,14 @@
+region             = "us-east-1"
+vpc_id             = "vpc-0123456789abcdef0"
+vpc_cidr           = "10.0.0.0/16"               # egress is capped to this; no internet
+private_subnet_ids = ["subnet-0aaa", "subnet-0bbb"]
+github_app_id      = "123456"
+github_api_url     = "https://ghe.internal.example/api/v3"  # in-VPC GHES for no-public
+runner_image_uri   = "123456789012.dkr.ecr.us-east-1.amazonaws.com/gha-ecs-runner/runner:latest"
+
+# Cost / scale guardrails
+use_fargate_spot       = true
+max_concurrent_runners = 25
+runner_cpu             = 2048
+runner_memory          = 4096
+ephemeral_storage_gb   = 50

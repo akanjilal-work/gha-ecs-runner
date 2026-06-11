@@ -1,0 +1,8 @@
+build/
+*.zip
+.terraform/
+*.tfstate
+*.tfstate.*
+*.pem
+.terraform.lock.hcl
+.DS_Store

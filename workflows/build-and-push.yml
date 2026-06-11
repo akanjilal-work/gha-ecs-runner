@@ -1,0 +1,75 @@
+# Sample application workflow.
+#
+# `runs-on` targets our self-hosted ECS runner labels. The control plane only
+# provisions a runner when a job with exactly these labels is queued, so a
+# misconfigured label means the job simply never gets capacity (fail-closed).
+#
+# Actions are pinned to full commit SHAs (supply-chain hygiene). Enforce this
+# org-wide with the "allowed actions" policy + a pinned-SHA ruleset.
+
+name: build-and-push
+
+on:
+  push:
+    branches: [main]
+  pull_request:        # NOTE: never enable on public repos with self-hosted
+                       # runners -- fork PRs could run untrusted code on your
+                       # infra. Use `pull_request_target` cautiously or gate by
+                       # an explicit maintainer label. See solution-design.md.
+
+permissions:
+  contents: read       # no id-token needed: signing uses an in-account KMS key,
+                       # not keyless OIDC against public Sigstore.
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: [self-hosted, ecs, linux, x64]
+    env:
+      ECR_REPOSITORY: demo/app
+      IMAGE_TAG: ${{ github.sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: Resolve ECR registry
+        run: echo "IMAGE=${ECR_HOST}/${ECR_REPOSITORY}:${IMAGE_TAG}" >> "$GITHUB_ENV"
+
+      - name: Build and push (rootless BuildKit -> ECR)
+        run: |
+          buildctl --addr "${BUILDKIT_HOST}" build \
+            --frontend dockerfile.v0 \
+            --local context=. \
+            --local dockerfile=. \
+            --opt build-arg:GIT_SHA=${IMAGE_TAG} \
+            --opt build-arg:BASE_REGISTRY=${ECR_HOST} \
+            --output type=image,name=${IMAGE},push=true \
+            --export-cache type=inline
+
+      - name: Generate SBOM
+        run: syft "${IMAGE}" -o spdx-json > sbom.spdx.json
+
+      # Sign with the in-account KMS key. --tlog-upload=false means NO call to
+      # the public Sigstore transparency log: signing touches only KMS + ECR,
+      # both reachable over PrivateLink. SIGNING_KMS_URI is injected by the task.
+      - name: Sign image (cosign + AWS KMS, no public tlog)
+        run: cosign sign --yes --tlog-upload=false --key "${SIGNING_KMS_URI}" "${IMAGE}"
+
+      - name: Attest SBOM (KMS-signed, no public tlog)
+        run: |
+          cosign attest --yes --tlog-upload=false --key "${SIGNING_KMS_URI}" \
+            --predicate sbom.spdx.json --type spdxjson "${IMAGE}"
+
+      # Prove the signature verifies with the same in-account key before we
+      # consider the artifact releasable. Deploy-time admission does the same.
+      - name: Verify signature
+        run: cosign verify --insecure-ignore-tlog=true --key "${SIGNING_KMS_URI}" "${IMAGE}"
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: sbom
+          path: sbom.spdx.json
