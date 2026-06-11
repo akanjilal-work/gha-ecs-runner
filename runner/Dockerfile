@@ -24,7 +24,7 @@ ARG TOOL_MIRROR_AWSCLI=https://awscli.amazonaws.com
 ARG TOOL_MIRROR_ECR_HELPER=https://amazon-ecr-credential-helper-releases.s3.us-east-2.amazonaws.com
 ARG TOOL_MIRROR_GITHUB=https://github.com
 
-ARG RUNNER_VERSION=2.319.1
+ARG RUNNER_VERSION=2.335.1
 ARG BUILDKIT_VERSION=v0.15.2
 ARG TARGETARCH=amd64
 
