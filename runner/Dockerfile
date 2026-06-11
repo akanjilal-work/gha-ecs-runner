@@ -53,6 +53,12 @@ RUN curl -fsSL -o /usr/local/bin/docker-credential-ecr-login \
 RUN curl -fsSL "${TOOL_MIRROR_GITHUB}/moby/buildkit/releases/download/${BUILDKIT_VERSION}/buildkit-${BUILDKIT_VERSION}.linux-${TARGETARCH}.tar.gz" \
         | tar -xz -C /usr/local
 
+# rootlesskit is required by the rootless BuildKit entrypoint and ships
+# separately from the BuildKit release tarball.
+ARG ROOTLESSKIT_VERSION=v3.0.1
+RUN curl -fsSL "${TOOL_MIRROR_GITHUB}/rootless-containers/rootlesskit/releases/download/${ROOTLESSKIT_VERSION}/rootlesskit-x86_64.tar.gz" \
+        | tar -xz -C /usr/local/bin
+
 # --- supply-chain tooling: SBOM (syft) + signing (cosign) --------------------
 RUN curl -fsSL "${TOOL_MIRROR_GITHUB}/anchore/syft/releases/download/v1.14.0/syft_1.14.0_linux_amd64.tar.gz" \
         | tar -xz -C /usr/local/bin syft \
