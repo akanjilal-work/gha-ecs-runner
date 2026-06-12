@@ -45,6 +45,9 @@ export BUILDKIT_HOST="unix://${HOME}/buildkitd.sock"
 BUILDKIT_ROOT="${HOME}/.local/share/buildkit"
 mkdir -p "${BUILDKIT_ROOT}"
 rootlesskit \
+  --net=host \
+  --copy-up=/etc \
+  --copy-up=/run \
   buildkitd \
     --addr "${BUILDKIT_HOST}" \
     --root "${BUILDKIT_ROOT}" \
