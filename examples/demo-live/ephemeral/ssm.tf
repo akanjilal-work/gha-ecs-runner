@@ -38,3 +38,21 @@ resource "aws_ssm_parameter" "runtime_webhook_url" {
   value     = "${aws_apigatewayv2_api.webhook.api_endpoint}/webhook"
   overwrite = true
 }
+
+# A small set of resource identifiers the page lists while the environment is up.
+resource "aws_ssm_parameter" "runtime_resources" {
+  name      = "/${local.prefix}/runtime/resources"
+  type      = "String"
+  overwrite = true
+  value = jsonencode({
+    "Region"              = local.region
+    "Virtual private cloud" = aws_vpc.this.id
+    "Load balancer"       = aws_lb.app.dns_name
+    "Container cluster"   = aws_ecs_cluster.this.name
+    "Runner task"         = aws_ecs_task_definition.runner.arn
+    "Application service" = aws_ecs_service.app.name
+    "Image registry"      = data.aws_ecr_repository.app.repository_url
+    "Signing key"         = "alias/${local.prefix}-signing"
+    "Webhook"             = "${aws_apigatewayv2_api.webhook.api_endpoint}/webhook"
+  })
+}
