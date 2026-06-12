@@ -1,0 +1,4 @@
+build/
+.terraform/
+*.tfstate*
+backend.hcl
