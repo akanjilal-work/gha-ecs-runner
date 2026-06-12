@@ -22,3 +22,19 @@ resource "aws_ssm_parameter" "deploy" {
   value     = each.value
   overwrite = true
 }
+
+# Runtime endpoints, so the control interface and the apply job always know the
+# current application and webhook addresses even after the environment is
+# destroyed and recreated.
+resource "aws_ssm_parameter" "runtime_app_url" {
+  name      = "/${local.prefix}/runtime/app_url"
+  type      = "String"
+  value     = "http://${aws_lb.app.dns_name}/"
+  overwrite = true
+}
+resource "aws_ssm_parameter" "runtime_webhook_url" {
+  name      = "/${local.prefix}/runtime/webhook_url"
+  type      = "String"
+  value     = "${aws_apigatewayv2_api.webhook.api_endpoint}/webhook"
+  overwrite = true
+}

@@ -4,3 +4,4 @@
 **/build/
 **/*.zip
 backend.hcl
+tfplan
